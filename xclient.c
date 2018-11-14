@@ -24,7 +24,8 @@
 static void childFcn();
 static void parentFcn();
 static void emptyFcn();
-
+static void clientSocketCommunication(socketArgs_t *args);
+static void initClientSocket(socketArgs_t *args);
 
 //>>>>>>>>>>>>>>>>>  MAIN  <<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char *argv[]){
@@ -32,17 +33,15 @@ int main(int argc, char *argv[]){
 	socketArgs_t client;
 
 	//initialization...
-//	initSpace(argc,argv);
+	initSpace(argc,argv);
 	initClientSocket(&client);
-//	processArgs_t prc = newProcess(childFcn,emptyFcn);
-
-//	initSemaphore();
+	processArgs_t prc = newProcess(childFcn,emptyFcn);
 
 
 	clientSocketCommunication(&client);
 
 	//deinitialization...
-//	deinitSemaphore();
+
 
 	return 0;
 }
@@ -63,3 +62,75 @@ static void parentFcn(){
 }
 
 static void emptyFcn(){};
+
+static void clientSocketCommunication(socketArgs_t *args)
+{
+        char buf[100];
+        char c = '\n';
+        char *p_buf;
+        int len = 0;
+        int recs = 0;
+        while(1)
+        {
+                gets(buf);
+
+                len = strlen(buf);
+                p_buf = buf;
+
+                sendSocket(args, p_buf, len);
+                sendSocket(args, &c, 1);
+
+                if (strcmp(buf, "exit") == 0)
+                        break;
+
+                recs = receiveSocket(args, buf, 100);
+
+                if (recs > 0) printf("%*.*s", recs, recs, buf);
+                if (strcmp(buf, "exit") == 0)
+			break;
+       }
+
+    close(args->recv_fd);
+//    close(args->temp_fd);
+//    close(args->send_fd);
+    printf("client disconnected\n");
+}
+
+static void initClientSocket(socketArgs_t *args)
+{
+
+        struct sockaddr_in server;
+        struct sockaddr_in client;
+        struct sockaddr_in temp;
+
+        args->send_fd = createSocket();
+
+        // nastavenie socketu
+        memset(&client, 0, sizeof(client));
+        client.sin_family = AF_INET;
+        client.sin_addr.s_addr = inet_addr("127.0.0.1");
+        client.sin_port = htons(7777);
+
+        connectSocket(&args->send_fd, &client);
+
+        args->temp_fd = createSocket();
+
+        // nastavenie socketu
+        memset(&server, 0, sizeof(server));
+        server.sin_family = AF_INET;
+        server.sin_addr.s_addr = INADDR_ANY;
+        server.sin_port = htons(17777);
+        checkForSocket(&args->temp_fd, &server);
+
+        memset(&temp, 0, sizeof(temp));
+        socklen_t Second_len = sizeof(temp);
+
+        args->recv_fd = accept(args->temp_fd, (struct sockaddr*)&temp,&Second_len);
+        if (args->recv_fd == -1)
+        {
+                printf("cannot accept client!\n");
+                close(args->temp_fd);
+                exit(EXIT_FAILURE);
+        }
+}
+
