@@ -1,0 +1,2 @@
+all: xsemaphore.c xspace.c xprocess.c xsocket.c xclient.c
+	gcc -o client xsemaphore.c xspace.c xprocess.c xsocket.c xclient.c -lpthread

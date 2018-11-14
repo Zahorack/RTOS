@@ -16,11 +16,10 @@ typedef struct{
 	int temp_fd;
 } socketArgs_t;
 
-
-void initServerSocket(socketArgs_t *args);
-void initClientSocket(socketArgs_t *args);
-void serverSocketCommunication(socketArgs_t *args);
-void clientSocketCommunication(socketArgs_t *args);
-
+int createSocket();
+void checkForSocket(int *, struct sockaddr_in *);
+void connectSocket(int *, struct sockaddr_in *);
+int receiveSocket(socketArgs_t *args, char *, int);
+int sendSocket(socketArgs_t *, char *, int);
 
 #endif

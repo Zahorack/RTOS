@@ -3,7 +3,7 @@
 
 #define BLOCK_RANGE	3
 #define SPACE_SIZE      50
-#define SPACE_DEBUG
+//#define SPACE_DEBUG
 
 extern char Space[SPACE_SIZE][SPACE_SIZE];
 
