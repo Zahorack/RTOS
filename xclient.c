@@ -26,26 +26,27 @@ static void parentFcn();
 static void emptyFcn();
 static void clientSocketCommunication(socketArgs_t *args);
 static void initClientSocket(socketArgs_t *args);
+static void socketProcessFcn();
 
-//>>>>>>>>>>>>>>>>>  MAIN  <<<<<<<<<<<<<<<<<<<<<
+//::Main
 int main(int argc, char *argv[]){
-
-	socketArgs_t client;
-
+	socketArgs_t args;
+	Point rover;
+	rover.x = 25;
+	rover.y = 30;
 	//initialization...
 	initSpace(argc,argv);
-	initClientSocket(&client);
-	processArgs_t prc = newProcess(childFcn,emptyFcn);
-
-
-	clientSocketCommunication(&client);
+//	initClientSocket(&args);
+//	processArgs_t socketProces = newProcess(socketProcessFcn,emptyFcn);
+	updateMap(rover);
+	printMap();
+//	clientSocketCommunication(&args);
 
 	//deinitialization...
 
 
 	return 0;
 }
-//<<<<<<<<<<<<<<<<<  MAIN  >>>>>>>>>>>>>>>>>>>>
 
 
 //::Function definitions
@@ -62,6 +63,15 @@ static void parentFcn(){
 }
 
 static void emptyFcn(){};
+
+static void socketProcessFcn(){
+	//create struct with file describtors
+	socketArgs_t client;
+	//init communiication setting
+	initClientSocket(&client);
+	//start communication..
+	clientSocketCommunication(&client);
+}
 
 static void clientSocketCommunication(socketArgs_t *args)
 {

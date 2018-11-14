@@ -27,23 +27,20 @@ static void emptyFcn();
 static void serverSocketCommunication(socketArgs_t *args);
 static void initServerSocket(socketArgs_t *args);
 
-//>>>>>>>>>>>>>>>>>  MAIN  <<<<<<<<<<<<<<<<<<<<<
+//::Main
 int main(int argc, char *argv[]){
 	socketArgs_t server;
 
 	//initialization...
-	initSpace(argc,argv);
 	initServerSocket(&server);
 
-	processArgs_t prc = newProcess(childFcn,emptyFcn);
+//	processArgs_t prc = newProcess(childFcn,emptyFcn);
 
 	//cycling...
 	serverSocketCommunication(&server);
 
 	return 0;
 }
-//<<<<<<<<<<<<<<<<<  MAIN  >>>>>>>>>>>>>>>>>>>>
-
 
 //::Function definitions
 static void childFcn(){
