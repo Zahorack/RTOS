@@ -3,7 +3,7 @@
 
 #define BLOCK_RANGE	3
 #define SPACE_SIZE      50
-#define LIDAR_RANGE	10
+#define LIDAR_RANGE	15
 #define MAP_SIZE	LIDAR_RANGE*2
 #define SPACE_DEBUG
 
@@ -18,6 +18,7 @@ typedef struct {
 void initSpace(int count, char **argv);
 void updateMap(Point);
 void printMap();
-
+int  isAvailable(Point);
+int  isFree(Point);
 
 #endif

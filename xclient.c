@@ -32,17 +32,24 @@ static void socketProcessFcn();
 int main(int argc, char *argv[]){
 	socketArgs_t args;
 	Point rover;
-	rover.x = 25;
-	rover.y = 30;
-	//initialization...
+	rover.x = 0;
+	rover.y = 0;
+
+	//INITIALIZATION
 	initSpace(argc,argv);
 //	initClientSocket(&args);
 //	processArgs_t socketProces = newProcess(socketProcessFcn,emptyFcn);
-	updateMap(rover);
-	printMap();
+
+	//CYCLING...
+	while(1){
+		sleep(1);
+		rover.x++;
+		rover.y++;
+		updateMap(rover);
+	}
 //	clientSocketCommunication(&args);
 
-	//deinitialization...
+	//DEINITIALIZATION...
 
 
 	return 0;

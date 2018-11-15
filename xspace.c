@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
 
 char Space[SPACE_SIZE][SPACE_SIZE];
 char Map[MAP_SIZE][MAP_SIZE];
@@ -60,10 +61,13 @@ void updateMap(Point actual){
 				Map[x+ln][y+ln] = 'n';
 		}
 	}
+	printMap();
 }
 
 
 void printMap(){
+
+ #ifdef SPACE_DEBUG
 	int ln = MAP_SIZE;
         for(int i =0; i < ln; i++){
                 for(int j = 0; j < ln; j++){
@@ -71,6 +75,13 @@ void printMap(){
                 }
 		printf("\n");
         }
+ #endif
 }
 
+int isAvailable(Point point){
+	return (point.x < SPACE_SIZE && point.x >= 0 && point.y < SPACE_SIZE && point.y >= 0);
+}
 
+int isFree(Point point){
+	return (Space[point.x][point.y] == '-');
+}
