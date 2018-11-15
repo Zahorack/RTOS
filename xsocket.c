@@ -9,46 +9,59 @@
 
 #pragma message "kompilujem xsocket.c ..."
 
-int createSocket(){
+void createSocket(socketArgs_t *args){
    	// vytvorenie socketu
-    	int sock_desc = socket(AF_INET, SOCK_STREAM, 0);
-    	if (sock_desc == -1)
+    	args->initSocket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    	if (args->initSocket_fd == -1)
     	{
         	printf("cannot create socket!\n");
         	exit(EXIT_FAILURE);
     	}
-	return sock_desc;	//vrati file describtor
 }
 
-void checkForSocket(int *fd, struct sockaddr_in *user){
-	if (bind(*fd, (struct sockaddr*)user, sizeof(*user)) != 0)
+void checkForSocket(socketArgs_t *args, struct sockaddr_in *user){
+	//chceck if port is available
+	if (bind(args->initSocket_fd, (struct sockaddr*)user, sizeof(*user)) != 0)
     	{
         	printf("cannot bind socket!\n");
-        	close(*fd);
+        	close(args->initSocket_fd);
         	exit(EXIT_FAILURE);
     	}
-
-    	if (listen(*fd, 20) != 0)
+	//start parallel process and wait for other 20 clients
+    	if (listen(args->initSocket_fd, 20) != 0)
     	{
         	printf("cannot listen on socket!\n");
-        	close(*fd);
+        	close(args->initSocket_fd);
         	exit(EXIT_FAILURE);
     	}
 }
 
-void connectSocket(int *fd, struct sockaddr_in *user){
+void connectSocket(socketArgs_t *args, struct sockaddr_in *user){
 	// pripojenie socketu
-    	if (connect(*fd, (struct sockaddr*)user, sizeof(*user)) != 0)
+    	if (connect(args->initSocket_fd, (struct sockaddr*)user, sizeof(*user)) != 0)
     	{
         	printf("cannot connect to server!\n");
-        	close(*fd);
+        	close(args->initSocket_fd);
 		exit(EXIT_FAILURE);
     	}
 }
 
-int receiveSocket(socketArgs_t *args, char *data, int length){
+void acceptSocket(socketArgs_t *args, struct sockaddr_in *user){
 
-	int recieved = recv(args->recv_fd, data, length, 0);
+	socklen_t len = sizeof(user);
+
+	args->sharedSocket_fd = accept(args->initSocket_fd, (struct sockaddr*)&user,&len);
+        if (args->sharedSocket_fd == -1)
+        {
+                printf("cannot accept client!\n");
+                close(args->sharedSocket_fd);
+                exit(EXIT_FAILURE);
+        }
+}
+
+int receiveSocket(int *fd, char *data, int length){
+
+	int recieved = recv(*fd, data, length, 0);
         if (recieved == -1)
         {
             printf("\ncannot read from client!\n");
@@ -63,7 +76,7 @@ int receiveSocket(socketArgs_t *args, char *data, int length){
 	return recieved;
 }
 
-int sendSocket(socketArgs_t *args, char *data, int length){
+int sendSocket(int *fd, char *data, int length){
 
 	int to_send = length;
 	int k = 0;
@@ -71,7 +84,7 @@ int sendSocket(socketArgs_t *args, char *data, int length){
 
 	while (to_send > 0)
         {
-            k = send(args->send_fd, data, length, 0);
+            k = send(*fd, data, length, 0);
             if (k == -1)
             {
                 printf("cannot write to server!\n");

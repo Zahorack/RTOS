@@ -5,7 +5,6 @@
  * Date:  11.11.2018
  *
  */
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -31,23 +30,14 @@ static void socketProcessFcn();
 //::Main
 int main(int argc, char *argv[]){
 	socketArgs_t args;
-	Point rover;
-	rover.x = 0;
-	rover.y = 0;
 
-	//INITIALIZATION
+	//INITIALIZATION...
 	initSpace(argc,argv);
-//	initClientSocket(&args);
-//	processArgs_t socketProces = newProcess(socketProcessFcn,emptyFcn);
+	initClientSocket(&args);
+	processArgs_t socketProces = newProcess(childFcn,emptyFcn);
 
 	//CYCLING...
-	while(1){
-		sleep(1);
-		rover.x++;
-		rover.y++;
-		updateMap(rover);
-	}
-//	clientSocketCommunication(&args);
+	clientSocketCommunication(&args);
 
 	//DEINITIALIZATION...
 
@@ -58,8 +48,17 @@ int main(int argc, char *argv[]){
 
 //::Function definitions
 static void childFcn(){
-	for(int i=0; i < 1; i++){
-		printf("I am child process\n");
+	printf("I am child process\n");
+
+	Point rover;
+	rover.x = 0;
+	rover.y = 0;
+
+	while(isAvailable(rover)){
+		sleep(1);
+		rover.x++;
+		rover.y++;
+		updateMap(rover);
 	}
 }
 
@@ -94,33 +93,30 @@ static void clientSocketCommunication(socketArgs_t *args)
                 len = strlen(buf);
                 p_buf = buf;
 
-                sendSocket(args, p_buf, len);
-                sendSocket(args, &c, 1);
+                sendSocket(&args->initSocket_fd, p_buf, len);
+                sendSocket(&args->initSocket_fd, &c, 1);
 
                 if (strcmp(buf, "exit") == 0)
                         break;
 
-                recs = receiveSocket(args, buf, 100);
+                recs = receiveSocket(&args->initSocket_fd, buf, 100);
 
                 if (recs > 0) printf("%*.*s", recs, recs, buf);
                 if (strcmp(buf, "exit") == 0)
 			break;
        }
 
-    close(args->recv_fd);
-//    close(args->temp_fd);
-//    close(args->send_fd);
+    close(args->sharedSocket_fd);
+    close(args->initSocket_fd);
+
     printf("client disconnected\n");
 }
 
 static void initClientSocket(socketArgs_t *args)
 {
-
-        struct sockaddr_in server;
         struct sockaddr_in client;
-        struct sockaddr_in temp;
 
-        args->send_fd = createSocket();
+        createSocket(args);
 
         // nastavenie socketu
         memset(&client, 0, sizeof(client));
@@ -128,26 +124,6 @@ static void initClientSocket(socketArgs_t *args)
         client.sin_addr.s_addr = inet_addr("127.0.0.1");
         client.sin_port = htons(7777);
 
-        connectSocket(&args->send_fd, &client);
-
-        args->temp_fd = createSocket();
-
-        // nastavenie socketu
-        memset(&server, 0, sizeof(server));
-        server.sin_family = AF_INET;
-        server.sin_addr.s_addr = INADDR_ANY;
-        server.sin_port = htons(17777);
-        checkForSocket(&args->temp_fd, &server);
-
-        memset(&temp, 0, sizeof(temp));
-        socklen_t Second_len = sizeof(temp);
-
-        args->recv_fd = accept(args->temp_fd, (struct sockaddr*)&temp,&Second_len);
-        if (args->recv_fd == -1)
-        {
-                printf("cannot accept client!\n");
-                close(args->temp_fd);
-                exit(EXIT_FAILURE);
-        }
+        connectSocket(args, &client);
 }
 

@@ -11,15 +11,15 @@
 
 typedef struct{
 
-	int recv_fd;
-	int send_fd;
-	int temp_fd;
+	int initSocket_fd;
+	int sharedSocket_fd;
 } socketArgs_t;
 
-int createSocket();
-void checkForSocket(int *, struct sockaddr_in *);
-void connectSocket(int *, struct sockaddr_in *);
-int receiveSocket(socketArgs_t *args, char *, int);
-int sendSocket(socketArgs_t *, char *, int);
+void createSocket(socketArgs_t *);
+void checkForSocket(socketArgs_t *, struct sockaddr_in *);
+void connectSocket(socketArgs_t *, struct sockaddr_in *);
+void acceptSocket(socketArgs_t *, struct sockaddr_in *);
+int  receiveSocket(int *fd, char *, int);
+int  sendSocket(int *fd, char *, int);
 
 #endif
