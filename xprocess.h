@@ -7,6 +7,6 @@ typedef  struct {
 
 } processArgs_t;
 
-processArgs_t newProcess(void (*childFunction)(void), void (*parentFunction)(void));
+processArgs_t newProcess(void (*childFunction)(void *), void (*parentFunction)(void *), void *, void *);
 
 #endif

@@ -4,7 +4,7 @@
 #include "xprocess.h"
 
 
-processArgs_t newProcess(void (*childFunction)(void), void (*parentFunction)(void)){
+processArgs_t newProcess(void (*childFunction)(void *chArg), void (*parentFunction)(void  *pArg), void *chArg, void *pArg){
 
 	processArgs_t args;
 	args.pid = fork();
@@ -13,12 +13,12 @@ processArgs_t newProcess(void (*childFunction)(void), void (*parentFunction)(voi
 	//child precess
 	if(args.pid == 0) {
 		printf("Child process!\n");
-		childFunction();
+		childFunction(&chArg);
 	}
 	//parrent preocess
 	else if(args.pid > 0){
 		printf("Parent precess!\n");
-		parentFunction();
+		parentFunction(&pArg);
 	}
 	else {
 		perror("fork() failed!\n");

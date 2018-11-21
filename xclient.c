@@ -12,72 +12,102 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include "xsemaphore.h"
-#include "main.h"
 #include "xspace.h"
 #include "xprocess.h"
 #include "xsocket.h"
+#include "xtimer.h"
+#include "xpacket.h"
 
 //::Function declarations
-static void childFcn();
-static void parentFcn();
 static void emptyFcn();
 static void clientSocketCommunication(socketArgs_t *args);
 static void initClientSocket(socketArgs_t *args);
-static void socketProcessFcn();
+static void socketProcessFcn(Point);
+static void sendLidarData();
+
+//::Global variables
+socketArgs_t client;
 
 //::Main
 int main(int argc, char *argv[]){
-	socketArgs_t args;
+
+	Point rover;
 
 	//INITIALIZATION...
 	initSpace(argc,argv);
-	initClientSocket(&args);
-	processArgs_t socketProces = newProcess(childFcn,emptyFcn);
-
+	initClientSocket(&client);
+//	newProcess(socketProcessFcn,emptyFcn,(void *)&rover, NULL);
+	socketProcessFcn(rover);
 	//CYCLING...
-	clientSocketCommunication(&args);
+	clientSocketCommunication(&client);
 
 	//DEINITIALIZATION...
-
 
 	return 0;
 }
 
 
 //::Function definitions
-static void childFcn(){
+static void socketProcessFcn(Point point){
 	printf("I am child process\n");
 
-	Point rover;
-	rover.x = 0;
-	rover.y = 0;
+	const int SendingInterval = 1;
+	//send lidar data periodicaly
+	initTimer(sendLidarData, SIGUSR1, SendingInterval);
 
-	while(isAvailable(rover)){
+	point.x = LIDAR_RANGE;
+	point.y = LIDAR_RANGE;
+
+	while(isAvailable(point) && isFree(point)){
 		sleep(1);
-		rover.x++;
-		rover.y++;
-		updateMap(rover);
-	}
-}
-
-static void parentFcn(){
-	for(int i = 0; i < 1; i++){
-		printf("I am parrent process\n");
+		point.x++;
+		point.y++;
+		updateLidarData(point);
 	}
 }
 
 static void emptyFcn(){};
 
-static void socketProcessFcn(){
-	//create struct with file describtors
-	socketArgs_t client;
-	//init communiication setting
-	initClientSocket(&client);
-	//start communication..
-	clientSocketCommunication(&client);
+static void sendLidarData()
+{
+	uint16_t dataSize = MAP_SIZE * MAP_SIZE;
+	Data_Packet p;
+	p.header.mark = PACKET_MARK;
+	p.header.data_len = dataSize;
+	p.header.type = packet_type_lidar_data;
+
+	p.data = LidarData;
+	p.crc = calc_crc8((uint8_t *)&LidarData, dataSize);
+/*
+			printf("type: %d\n", p.header.type);
+                        printf("data_len: %d\n", p.header.data_len);
+                        printf("crc: %d\n", p.crc);
+*/
+	int sendhead = sendSocket(&client.initSocket_fd, (char *)&p, sizeof(Data_Packet) - 1);
+	int senddata = sendSocket(&client.initSocket_fd, (char *)p.data, dataSize);
+
+/*	printf("senthead = %d\n", sendhead);
+	printf("sentdata = %d\n", senddata);
+*/
 }
+
+static void sendSimplePacket(uint8_t packet_type)
+{
+        uint16_t packet_size = sizeof(Data_Packet);                     // - pointer na data
+        Data_Packet  p;
+
+        p.header.mark          = PACKET_MARK;
+        p.header.data_len      = 0;
+        p.header.type          = packet_type;
+        p.crc                  = 0;
+
+	sendSocket(&client.initSocket_fd, (char *)&p, packet_size);
+
+}
+
 
 static void clientSocketCommunication(socketArgs_t *args)
 {
