@@ -11,7 +11,7 @@ typedef struct {
 void *threadFunction1(threadArgs_t *args);
 void *threadFunction2(threadArgs_t *args);
 
-void createThread(pthread_t *thread, void *(*threadFunction)(threadArgs_t *), threadArgs_t *args);
+void createThread(pthread_t *thread, void *(*threadFunction)(threadArgs_t *), void *args);
 void joinThread(pthread_t *thread);
 int  initSemaphore();
 int  deinitSemaphore();

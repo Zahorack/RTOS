@@ -26,7 +26,9 @@ enum packet_type{
 	packet_type_status = 0,
 	packet_type_nack,
 	packet_type_ack,
-	packet_type_lidar_data
+	packet_type_lidar_data,
+	packet_type_move,
+	packet_type_pid
 };
 
 uint8_t calc_crc8(uint8_t* data, uint16_t len);

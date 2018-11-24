@@ -6,14 +6,14 @@
 #include <semaphore.h>
 #include "xsemaphore.h"
 
-#pragma message "kompilujem xsemaphore"
+//#pragma message "kompilujem xsemaphore"
 
 pthread_t thread1, thread2;
 threadArgs_t args;
 
 
 // Kedze vytvarame viac ako 1 vlakno spravime si na to funkciu nech nemame duplicitny kod
-void createThread(pthread_t *thread, void *(*threadFunction)(threadArgs_t *), threadArgs_t *args)
+void createThread(pthread_t *thread, void *(*threadFunction)(threadArgs_t *), void *args)
 {
 	// A posleme argumenty!
 	if(pthread_create(thread, NULL, (void *)threadFunction, (void *)args)) { 

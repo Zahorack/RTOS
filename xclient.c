@@ -13,6 +13,7 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <stdint.h>
+#include <ncurses.h>
 
 #include "xsemaphore.h"
 #include "xspace.h"
@@ -20,54 +21,154 @@
 #include "xsocket.h"
 #include "xtimer.h"
 #include "xpacket.h"
+#include "xsharedmemory.h"
 
 //::Function declarations
 static void emptyFcn();
-static void clientSocketCommunication(socketArgs_t *args);
 static void initClientSocket(socketArgs_t *args);
-static void socketProcessFcn(Point);
 static void sendLidarData();
+static void *receiveFromServer();
+static void initRover();
+static void nextMove(int, int);
+static void updateRover(uint8_t);
+static void initScreen();
+static void repaintMap();
+static void setServerPID(uint8_t *);
 
 //::Global variables
 socketArgs_t client;
+Point rover;
+pid_t serverPID;
+WINDOW *mapa = NULL;
 
 //::Main
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
+	pthread_t thread1;
+	char *sharedTask;
 
-	Point rover;
-
-	//INITIALIZATION...
-	initSpace(argc,argv);
+	//INITIALIZATION..
 	initClientSocket(&client);
+	createThread(&thread1, receiveFromServer, &client);
+	getSharedMemory(sharedTask, 32, 5678);
+
+	initSpace(argc,argv);
+	kill(serverPID, SIGUSR2); //Tell server we are ready, must be below initSpace()
+	initScreen();
+	initRover();
+
 //	newProcess(socketProcessFcn,emptyFcn,(void *)&rover, NULL);
-	socketProcessFcn(rover);
+
 	//CYCLING...
-	clientSocketCommunication(&client);
+	while(1) sleep(1);
 
 	//DEINITIALIZATION...
+	endwin();
 
 	return 0;
 }
 
+static void initScreen()
+{
+	initscr();
+        mapa = newwin(SPACE_SIZE,2*SPACE_SIZE, 2,2);
+	printw("Global map view");
+
+	repaintMap();
+	box(mapa, 0, 0);
+        wrefresh(mapa);
+        refresh();
+
+}
+
+static void repaintMap()
+{
+        for(int i=0; i < SPACE_SIZE; i++){
+                for(int j=0; j < SPACE_SIZE*2; j++)
+                {
+                        mvwaddch(mapa,i, j,Space[i][j]);
+                }
+                waddch(mapa, '\n');
+        }
+}
 
 //::Function definitions
-static void socketProcessFcn(Point point){
-	printf("I am child process\n");
+static void *receiveFromServer(socketArgs_t *args)
+{
+	uint16_t word;
+        Data_Packet p;
+        int recs =0;
 
-	const int SendingInterval = 1;
-	//send lidar data periodicaly
-	initTimer(sendLidarData, SIGUSR1, SendingInterval);
+        while(1) {
+                recs = receiveSocket(&args->initSocket_fd, (char*)&word, 2);
 
-	point.x = LIDAR_RANGE;
-	point.y = LIDAR_RANGE;
+                if(word == PACKET_MARK) {
+                        //Readpacket header and CRC
+                        recs = receiveSocket(&args->initSocket_fd, (char*)&p+2, sizeof(Data_Packet) - 3);
+			if(p.header.data_len > 0) {
 
-	while(isAvailable(point) && isFree(point)){
-		sleep(1);
-		point.x++;
-		point.y++;
-		updateLidarData(point);
+				//Dangerous- Dynamic allocaton!!!!
+                        	p.data = malloc(p.header.data_len * sizeof(uint8_t));
+                        	if(p.data == NULL) printf("ERROR ALLOCATION\n");
+	                       	//Read data
+                        	receiveSocket(&args->initSocket_fd, (char*)p.data, p.header.data_len);
+				//Calc CRC
+                        	uint8_t calcCRC = calc_crc8((uint8_t *)p.data, p.header.data_len);
+
+                        	if(p.crc == calcCRC)
+                                //PARSING PACKETS
+                                switch(p.header.type) {
+					case packet_type_move : updateRover(*p.data); break;
+                                	case packet_type_pid  : setServerPID(p.data); break;
+				}
+
+				free(p.data);   //Uvolinit pamat
+                        }
+			else {
+				switch(p.header.type) {
+                                        case packet_type_lidar_data: sendLidarData(); break;
+                                }
+			}  //PACKET WITHOUT DATA
+                } //PACKET MARK NOT FOUND
+        } // REPEAT
+
+        close(args->initSocket_fd);
+        close(args->sharedSocket_fd);
+
+}
+
+static void setServerPID(uint8_t *data)
+{
+	uint16_t pID = data[0] | data[1] << 8;
+	serverPID = pID;
+}
+
+static void updateRover(uint8_t move)
+{
+	switch(move) {
+
+		case up : nextMove(-1, 0); break;
+		case down : nextMove(1, 0); break;
+		case right : nextMove(0, 1); break;
+		case left : nextMove(0, -1); break;
+		default : printf("Invalid movement command!\n");
+	}
+	updateLidarData(rover);
+}
+
+static void nextMove(int x, int y)
+{
+	Point next;
+	next.x = rover.x +x;
+	next.y = rover.y +y;
+
+	if(isFree(next)) {
+		rover.x += x;
+		rover.y += y;
+		mvwaddch(mapa, rover.x, rover.y, '*');
+		wrefresh(mapa);
 	}
 }
+
 
 static void emptyFcn(){};
 
@@ -81,11 +182,7 @@ static void sendLidarData()
 
 	p.data = LidarData;
 	p.crc = calc_crc8((uint8_t *)&LidarData, dataSize);
-/*
-			printf("type: %d\n", p.header.type);
-                        printf("data_len: %d\n", p.header.data_len);
-                        printf("crc: %d\n", p.crc);
-*/
+
 	int sendhead = sendSocket(&client.initSocket_fd, (char *)&p, sizeof(Data_Packet) - 1);
 	int senddata = sendSocket(&client.initSocket_fd, (char *)p.data, dataSize);
 
@@ -96,7 +193,7 @@ static void sendLidarData()
 
 static void sendSimplePacket(uint8_t packet_type)
 {
-        uint16_t packet_size = sizeof(Data_Packet);                     // - pointer na data
+        uint16_t packet_size = sizeof(Data_Packet);
         Data_Packet  p;
 
         p.header.mark          = PACKET_MARK;
@@ -104,43 +201,9 @@ static void sendSimplePacket(uint8_t packet_type)
         p.header.type          = packet_type;
         p.crc                  = 0;
 
-	sendSocket(&client.initSocket_fd, (char *)&p, packet_size);
-
+	sendSocket(&client.initSocket_fd, (char *)&p, packet_size -1);
 }
 
-
-static void clientSocketCommunication(socketArgs_t *args)
-{
-        char buf[100];
-        char c = '\n';
-        char *p_buf;
-        int len = 0;
-        int recs = 0;
-        while(1)
-        {
-                gets(buf);
-
-                len = strlen(buf);
-                p_buf = buf;
-
-                sendSocket(&args->initSocket_fd, p_buf, len);
-                sendSocket(&args->initSocket_fd, &c, 1);
-
-                if (strcmp(buf, "exit") == 0)
-                        break;
-
-                recs = receiveSocket(&args->initSocket_fd, buf, 100);
-
-                if (recs > 0) printf("%*.*s", recs, recs, buf);
-                if (strcmp(buf, "exit") == 0)
-			break;
-       }
-
-    close(args->sharedSocket_fd);
-    close(args->initSocket_fd);
-
-    printf("client disconnected\n");
-}
 
 static void initClientSocket(socketArgs_t *args)
 {
@@ -157,3 +220,9 @@ static void initClientSocket(socketArgs_t *args)
         connectSocket(args, &client);
 }
 
+static void initRover()
+{
+	rover.x = start.x+1;
+	rover.y = start.y+1;
+	updateLidarData(rover);
+}
