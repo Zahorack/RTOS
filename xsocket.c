@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
-#include <ncurses.h>
 #include "xsocket.h"
 
 //#pragma message "kompilujem xsocket.c ..."
@@ -17,7 +16,6 @@ void createSocket(socketArgs_t *args){
     	if (args->initSocket_fd == -1)
     	{
         	printf("cannot create socket!\n");
-		endwin();
 		kill(getpid(), SIGKILL);
         	exit(EXIT_FAILURE);
     	}
@@ -29,7 +27,6 @@ void checkForSocket(socketArgs_t *args, struct sockaddr_in *user){
     	{
         	printf("cannot bind socket!\n");
         	close(args->initSocket_fd);
-		endwin();
 		kill(getpid(), SIGKILL);
         	exit(EXIT_FAILURE);
     	}
@@ -38,7 +35,6 @@ void checkForSocket(socketArgs_t *args, struct sockaddr_in *user){
     	{
         	printf("cannot listen on socket!\n");
         	close(args->initSocket_fd);
-		endwin();
 		kill(getpid(), SIGKILL);
         	exit(EXIT_FAILURE);
     	}
@@ -50,7 +46,6 @@ void connectSocket(socketArgs_t *args, struct sockaddr_in *user){
     	{
         	printf("cannot connect to server!\n");
         	close(args->initSocket_fd);
-		endwin();
 		kill(getpid(), SIGKILL);
 		exit(EXIT_FAILURE);
     	}
@@ -65,7 +60,6 @@ void acceptSocket(socketArgs_t *args, struct sockaddr_in *user){
         {
                 printf("cannot accept client!\n");
                 close(args->sharedSocket_fd);
-		endwin();
 		kill(getpid(), SIGKILL);
 	        exit(EXIT_FAILURE);
         }
@@ -77,7 +71,6 @@ int receiveSocket(int *fd, char *data, int length){
         if (recieved == -1)
         {
             printf("\ncannot read from client!\n");
-            endwin();
 	    kill(getpid(), SIGKILL);
 	    exit(EXIT_FAILURE);
         }
@@ -97,7 +90,6 @@ int sendSocket(int *fd, char *data, int length){
             if (k == -1)
             {
                 printf("cannot write to server!\n");
-		endwin();
 		kill(getpid(), SIGKILL);
                 break;
             }

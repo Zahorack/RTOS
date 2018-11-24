@@ -37,10 +37,13 @@ static void clientReady();
 static void initScreen();
 static void sendProcessID();
 static void updateLidarScreen();
+static void setClientPID(uint8_t *);
+static void stopHandler();
 
 //::Blobal variables
 socketArgs_t server;
 uint8_t clientFlag = 0;
+pid_t clientPID;
 WINDOW *lidar =NULL;
 
 //::Main
@@ -49,13 +52,14 @@ int main(int argc, char *argv[]){
 	char *sharedTask;
 
 	//initialization...
+	signal(SIGINT, stopHandler);
 	initServerSocket(&server);
 	initSharedMemory(sharedTask, 32, 5678);
 	createThread(&thread1, receiveFromClient, &server);
 	waitForClientInit();
 
 	initScreen();
-        initTimer(getLidarData, SIGUSR1, 1);
+        initTimer(getLidarData, SIGUSR1, 1, 0);
 //	newProcess(receiveFromClient,emptyFcn, (void*)&server, NULL);
 
 	//cycling...
@@ -69,6 +73,19 @@ int main(int argc, char *argv[]){
 
 //::Function definitions
 static void emptyFcn(){};
+
+static void stopHandler()
+{
+
+	close(server.initSocket_fd);
+        close(server.sharedSocket_fd);
+
+	endwin();
+	printf("User wish exit progam!\n");
+	kill(clientPID, SIGINT);
+
+	kill(getpid(), SIGQUIT);	//SIGQUIT close socket port
+}
 
 static void waitForClientInit()
 {
@@ -147,6 +164,7 @@ static void *receiveFromClient(socketArgs_t *args)
 					//PARSING PACKETS
 					switch(p.header.type) {
 						case packet_type_lidar_data: parseLidarData((char*)p.data, p.header.data_len); break;
+						case packet_type_pid : setClientPID(p.data);
 					}
 				free(p.data);	//Uvolinit pamat
 			}
@@ -162,6 +180,12 @@ static void *receiveFromClient(socketArgs_t *args)
     	close(args->sharedSocket_fd);
 
     	printf("Server disconnected!\n");
+}
+
+static void setClientPID(uint8_t *data)
+{
+        uint16_t pID = data[0] | data[1] << 8;
+        clientPID = pID;
 }
 
 static void sendSimplePacket(uint8_t packet_type)

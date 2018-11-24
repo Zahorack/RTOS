@@ -4,7 +4,7 @@
 #include "xprocess.h"
 
 
-processArgs_t newProcess(void (*childFunction)(void *chArg), void (*parentFunction)(void  *pArg), void *chArg, void *pArg){
+processArgs_t createProcess(void (*childFunction)(void *chArg), void (*parentFunction)(void  *pArg), void *chArg, void *pArg){
 
 	processArgs_t args;
 	args.pid = fork();

@@ -5,37 +5,8 @@
 
 #include "xtimer.h"
 
-void timerIRQ(int sig) {
 
-	//if(sig == SIGUSR1)
-		printf("Prijaty signal z casovaca!\n");
-}
-
-/*USAGE*/
-/*
-int main(void)
-{
-	 initTimer(timerIRQ, SIGUSR1, 3);
- 	 while(1)
- 	 {
-   		 sleep(1);
-   		 printf("Dalsia sekunda\n");
- 	 }
-}
-
-*/
-void initTimer(void (*IRQ_handler)(), int sig, int time)
-{
-	if(signal(sig, IRQ_handler) == SIG_ERR) {
-		printf("Cannot map signal \n");
-	}
-	timer_t timer = createTimer(sig);
-	runTimer(timer, time);
-
-}
-
-
-timer_t createTimer(int signal)
+static timer_t createTimer(int signal)
 {
 	timer_t timer;
 	struct sigevent kam;
@@ -47,13 +18,22 @@ timer_t createTimer(int signal)
 	return timer;
 }
 
-void runTimer(timer_t tim, int seconds)
+static void runTimer(timer_t tim, int seconds, int nano)
 {
   struct itimerspec timIT;
   timIT.it_value.tv_sec = seconds;
-  timIT.it_value.tv_nsec=0;
+  timIT.it_value.tv_nsec = nano;
   timIT.it_interval.tv_sec = seconds;
-  timIT.it_interval.tv_nsec=0;
+  timIT.it_interval.tv_nsec = nano;
   timer_settime(tim,CLOCK_REALTIME,&timIT,NULL);
 }
 
+void initTimer(void (*IRQ_handler)(), int sig, int seconds, int nanoseconds)
+{
+	if(signal(sig, IRQ_handler) == SIG_ERR) {
+		printf("Cannot map signal \n");
+	}
+	timer_t timer = createTimer(sig);
+	runTimer(timer, seconds, nanoseconds);
+
+}

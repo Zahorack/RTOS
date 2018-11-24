@@ -34,6 +34,8 @@ static void updateRover(uint8_t);
 static void initScreen();
 static void repaintMap();
 static void setServerPID(uint8_t *);
+static void stopHandler();
+static void sendProcessID();
 
 //::Global variables
 socketArgs_t client;
@@ -47,9 +49,11 @@ int main(int argc, char *argv[]) {
 	char *sharedTask;
 
 	//INITIALIZATION..
+	signal(SIGINT, stopHandler);
 	initClientSocket(&client);
 	createThread(&thread1, receiveFromServer, &client);
 	getSharedMemory(sharedTask, 32, 5678);
+	sendProcessID();
 
 	initSpace(argc,argv);
 	kill(serverPID, SIGUSR2); //Tell server we are ready, must be below initSpace()
@@ -65,6 +69,19 @@ int main(int argc, char *argv[]) {
 	endwin();
 
 	return 0;
+}
+
+static void stopHandler()
+{
+
+	close(client.initSocket_fd);
+        close(client.sharedSocket_fd);
+
+	endwin();
+	printf("User wish ext program!\n");
+
+	kill(serverPID, SIGINT);
+	kill(getpid(), SIGKILL);
 }
 
 static void initScreen()
@@ -171,6 +188,22 @@ static void nextMove(int x, int y)
 
 
 static void emptyFcn(){};
+
+static void sendProcessID()
+{
+	      	uint16_t packet_size = sizeof(Data_Packet);
+        	Data_Packet  p;
+        	pid_t processID= getpid();
+        	uint8_t *ptr = (uint8_t *)&processID;
+
+        	p.header.mark          = PACKET_MARK;
+        	p.header.data_len      = sizeof(pid_t);
+        	p.header.type          = packet_type_pid;
+        	p.crc                  = calc_crc8((uint8_t *)ptr, p.header.data_len);
+        	p.data                 = ptr;
+        	sendSocket(&client.initSocket_fd, (char *)&p, packet_size -1);
+        	sendSocket(&client.initSocket_fd, (char *)p.data, sizeof(pid_t));
+}
 
 static void sendLidarData()
 {
