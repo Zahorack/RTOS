@@ -7,16 +7,17 @@
 processArgs_t createProcess(void (*childFunction)(void *chArg), void (*parentFunction)(void  *pArg), void *chArg, void *pArg){
 
 	processArgs_t args;
-	args.pid = fork();
+	int id = fork();
+	args.pid = getpid();
 	args.ppid = getppid();
 
 	//child precess
-	if(args.pid == 0) {
+	if(id == 0) {
 		printf("Child process!\n");
 		childFunction(&chArg);
 	}
 	//parrent preocess
-	else if(args.pid > 0){
+	else if(id > 0){
 		printf("Parent precess!\n");
 		parentFunction(&pArg);
 	}

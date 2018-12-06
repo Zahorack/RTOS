@@ -28,7 +28,10 @@ enum packet_type{
 	packet_type_ack,
 	packet_type_lidar_data,
 	packet_type_move,
-	packet_type_pid
+	packet_type_pid,
+	packet_type_coordinates,
+	packet_type_delta_move,
+	packet_type_navigation
 };
 
 uint8_t calc_crc8(uint8_t* data, uint16_t len);

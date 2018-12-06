@@ -5,15 +5,15 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <stdint.h>
 #include "xsharedmemory.h"
 
 
-void initSharedMemory(char *ref, size_t size, key_t key)
+uint8_t *initSharedMemory(size_t size, key_t key)
 {
-
     int shmid;
-
-     /*
+	void *ref;
+    /*
      * Create the segment.
      */
     if ((shmid = shmget(key, size, IPC_CREAT | 0666)) < 0) {
@@ -29,13 +29,15 @@ void initSharedMemory(char *ref, size_t size, key_t key)
         exit(EXIT_FAILURE);
     }
 
+	return ref;
 }
 
 
-void getSharedMemory(char *ref, size_t size, key_t key)
+uint8_t *getSharedMemory(size_t size, key_t key)
 {
 
 	int shmid;
+	void *ref;
     /*
      * Locate the segment.
      */
@@ -51,5 +53,6 @@ void getSharedMemory(char *ref, size_t size, key_t key)
         perror("shmat");
         exit(EXIT_FAILURE);
     }
+	return ref;
 }
 

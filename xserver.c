@@ -22,11 +22,13 @@
 #include "xtimer.h"
 #include "xpacket.h"
 #include "xsharedmemory.h"
+#include "xnavigation.h"
+
 
 //::Function declarations
 static void emptyFcn();
 static void initServerSocket(socketArgs_t *args);
-static void parseLidarData(char *, uint16_t);
+static void setLidarData(char *, uint16_t);
 static void *receiveFromClient();
 static void getLidarData();
 static void sendSimplePacket(uint8_t );
@@ -39,44 +41,106 @@ static void sendProcessID();
 static void updateLidarScreen();
 static void setClientPID(uint8_t *);
 static void stopHandler();
+static void generateNavigation(uint8_t (*algorithm)(void));
+static void sendCoordinates();
+static void setCoordinates();
+static void getCoordinates();
+static void getNavigationDataPeriodicaly();
+static void sendDeltaMove(Point);
+
+static uint8_t dumb();
+
+
 
 //::Blobal variables
-socketArgs_t server;
-uint8_t clientFlag = 0;
-pid_t clientPID;
-WINDOW *lidar =NULL;
+static socketArgs_t server;
+static coordinates_t coords;
+static uint8_t clientFlag = 0;
+static uint8_t exitFlag = 0;
+static pid_t clientPID;
+static processArgs_t gui_t;
+static WINDOW *lidar =NULL;
+static char Lidar[MAP_SIZE][MAP_SIZE];
+static uint8_t *sharedTask;
 
 //::Main
 int main(int argc, char *argv[]){
-	pthread_t thread1;
-	char *sharedTask;
+	pthread_t threadReceive, threadGUI;
 
 	//initialization...
 	signal(SIGINT, stopHandler);
 	initServerSocket(&server);
-	initSharedMemory(sharedTask, 32, 5678);
-	createThread(&thread1, receiveFromClient, &server);
+	sharedTask = initSharedMemory(sizeof(navigation_t), 5678);
+        memset(sharedTask, 0, sizeof(navigation_t));
+	createThread(&threadReceive, receiveFromClient, &server);
+
 	waitForClientInit();
+	memcpy(&navigation, sharedTask, sizeof(navigation_t));
+	printf("nnav type: %d\n", navigation.type);
+	printf("nav.global type: %d\n", navigation.global.type);
+	printf("nav.bug type : %d\n", navigation.local.lidar.algorithm.bug.type);
 
 	initScreen();
-        initTimer(getLidarData, SIGUSR1, 1, 0);
-//	newProcess(receiveFromClient,emptyFcn, (void*)&server, NULL);
+        initTimer(getNavigationDataPeriodicaly, SIGUSR1, 0, 50000000);
 
 	//cycling...
 	getMoveCommand();
 
-	joinThread(&thread1);
+	joinThread(&threadReceive);
 	endwin();
 
 	return 0;
 }
 
 //::Function definitions
-static void emptyFcn(){};
+static void emptyFcn()
+{}
+
+static uint8_t dumb()
+{
+	Point delta;
+	delta.x = 0;
+	delta.y = 0;
+
+	if(coords.actual.y < coords.goal.y)
+		delta.y = 1;
+	else if(coords.actual.y > coords.goal.y)
+		delta.y = -1;
+
+
+	if(coords.actual.x < coords.goal.x)
+		delta.x = 1;
+	else if(coords.actual.x > coords.goal.x)
+		delta.x = -1;
+
+	if(Lidar[LIDAR_MID + delta.y][LIDAR_MID] == 'X') {
+		delta.x = 1;
+		delta.y = 0;
+	}
+
+	else if(Lidar[LIDAR_MID][LIDAR_MID + delta.x] == 'X') {
+		delta.y = 1;
+		delta.x = 0;
+	}
+
+	sendDeltaMove(delta);
+}
+
+static void generateNavigation(uint8_t (*algorithm)())
+{
+	uint8_t move = algorithm();
+//	sendMoveCommand(move);
+}
+
+static void getNavigationDataPeriodicaly()
+{
+	getLidarData();
+	getCoordinates();
+}
 
 static void stopHandler()
 {
-
+	exitFlag = 1;
 	close(server.initSocket_fd);
         close(server.sharedSocket_fd);
 
@@ -84,6 +148,7 @@ static void stopHandler()
 	printf("User wish exit progam!\n");
 	kill(clientPID, SIGINT);
 
+	kill(gui_t.pid, SIGINT);
 	kill(getpid(), SIGQUIT);	//SIGQUIT close socket port
 }
 
@@ -124,9 +189,9 @@ static void updateLidarScreen()
 {
         int iterator = 0;
         int ln = MAP_SIZE;
-        for(int i =0; i < ln; i++){
-                for(int j = 0; j < ln; j++){
-                        mvwaddch(lidar, i+1,j+1,LidarData[iterator]);
+        for(int y =0; y < ln; y++){
+                for(int x = 0; x < ln; x++){
+                        mvwaddch(lidar, y+1,x+1,Lidar[y][x]);
                         iterator++;
                 }
                 waddch(lidar,'\n');
@@ -141,7 +206,7 @@ static void *receiveFromClient(socketArgs_t *args)
 	Data_Packet p;
 	int recs =0;
 
-	while(1) {
+	while(!exitFlag) {
 		recs = receiveSocket(&args->sharedSocket_fd, (char*)&word, 2);
 
 		if(word == PACKET_MARK) {
@@ -163,13 +228,15 @@ static void *receiveFromClient(socketArgs_t *args)
 				if(p.crc == calcCRC)
 					//PARSING PACKETS
 					switch(p.header.type) {
-						case packet_type_lidar_data: parseLidarData((char*)p.data, p.header.data_len); break;
-						case packet_type_pid : setClientPID(p.data);
+						case packet_type_lidar_data: 	setLidarData((char*)p.data, p.header.data_len); break;
+						case packet_type_pid : 		setClientPID(p.data); break;
+						case packet_type_coordinates : 	setCoordinates(p.data); break;
 					}
 				free(p.data);	//Uvolinit pamat
 			}
 			else {
 				switch(p.header.type) {
+					case packet_type_navigation : generateNavigation(dumb); break;
 
 				}
 			}
@@ -188,6 +255,24 @@ static void setClientPID(uint8_t *data)
         clientPID = pID;
 }
 
+static void setCoordinates(uint8_t *data)
+{
+	memcpy(&coords, data, sizeof(coords));
+}
+
+
+static void setLidarData(char * data, uint16_t length)
+{
+	int len = MAP_SIZE * MAP_SIZE;
+
+                strncpy(LidarData, data, length);
+		for(int y = 0; y < MAP_SIZE; y++) {
+			strncpy(Lidar[y], (LidarData + y*MAP_SIZE), MAP_SIZE);
+		}
+
+		updateLidarScreen();
+}
+
 static void sendSimplePacket(uint8_t packet_type)
 {
         uint16_t packet_size = sizeof(Data_Packet);
@@ -201,8 +286,28 @@ static void sendSimplePacket(uint8_t packet_type)
         sendSocket(&server.sharedSocket_fd, (char*)&p, packet_size -1);
 }
 
+static void sendDeltaMove(Point delta)
+{
+	uint16_t packet_size = sizeof(Data_Packet);
+        Data_Packet  p;
+        int16_t data[2];
+	data[0] = htons(delta.x);
+	data[1] = htons(delta.y);
+
+        p.header.mark          = PACKET_MARK;
+        p.header.data_len      = sizeof(data);
+        p.header.type          = packet_type_delta_move;
+        p.crc                  = calc_crc8((uint8_t *)data, p.header.data_len);
+        p.data                 = (uint8_t *)&data;
+        sendSocket(&server.sharedSocket_fd, (char *)&p, packet_size -1);
+	sendSocket(&server.sharedSocket_fd, (char *)data, p.header.data_len);
+
+}
+
 static void sendMoveCommand(uint8_t move)
 {
+	if(move < moveSize) {
+
 	uint16_t packet_size = sizeof(Data_Packet);
         Data_Packet  p;
 	uint8_t *ptr = &move;
@@ -215,6 +320,19 @@ static void sendMoveCommand(uint8_t move)
 	sendSocket(&server.sharedSocket_fd, (char *)&p, packet_size -1);
 	sendSocket(&server.sharedSocket_fd, (char *)p.data, 1);
 
+	}
+}
+
+static void sendCoordinatinates()
+{
+        Data_Packet p;
+        p.header.mark          = PACKET_MARK;
+        p.header.data_len      = sizeof(coordinates_t);
+        p.header.type          = packet_type_coordinates;
+        p.crc                  = calc_crc8((uint8_t *)&coords, p.header.data_len);
+
+        sendSocket(&server.sharedSocket_fd, (char *)&p, sizeof(Data_Packet) -1);
+        sendSocket(&server.sharedSocket_fd, (char *)&coords, p.header.data_len);
 }
 
 static void sendProcessID()
@@ -245,7 +363,7 @@ static void getMoveCommand()
 			case 'a': sendMoveCommand(left); break;
 
 			case '\n' : break;
-			default : printf("Invalit command!\n"); break;
+//			default : printf("Invalit command!\n"); break;
 		}
 	getLidarData();
 	}
@@ -256,14 +374,9 @@ static void getLidarData()
 	sendSimplePacket(packet_type_lidar_data);
 }
 
-static void parseLidarData(char * data, uint16_t length)
+static void getCoordinates()
 {
-	int len = MAP_SIZE * MAP_SIZE;
-
-                strncpy(LidarData, data, length);
-		updateLidarScreen();
-
-
+	sendSimplePacket(packet_type_coordinates);
 }
 
 static void initServerSocket(socketArgs_t *args)

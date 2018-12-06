@@ -7,10 +7,14 @@
 #include <unistd.h>
 #include <signal.h>
 #include "xsocket.h"
+#include <sys/types.h>
+#include <time.h>
+
 
 //#pragma message "kompilujem xsocket.c ..."
 
-void createSocket(socketArgs_t *args){
+void createSocket(socketArgs_t *args)
+{
    	// vytvorenie socketu
     	args->initSocket_fd = socket(AF_INET, SOCK_STREAM, 0);
     	if (args->initSocket_fd == -1)
@@ -21,7 +25,8 @@ void createSocket(socketArgs_t *args){
     	}
 }
 
-void checkForSocket(socketArgs_t *args, struct sockaddr_in *user){
+void checkForSocket(socketArgs_t *args, struct sockaddr_in *user)
+{
 	//chceck if port is available
 	if (bind(args->initSocket_fd, (struct sockaddr*)user, sizeof(*user)) != 0)
     	{
@@ -40,7 +45,8 @@ void checkForSocket(socketArgs_t *args, struct sockaddr_in *user){
     	}
 }
 
-void connectSocket(socketArgs_t *args, struct sockaddr_in *user){
+void connectSocket(socketArgs_t *args, struct sockaddr_in *user)
+{
 	// pripojenie socketu
     	if (connect(args->initSocket_fd, (struct sockaddr*)user, sizeof(*user)) != 0)
     	{
@@ -51,8 +57,8 @@ void connectSocket(socketArgs_t *args, struct sockaddr_in *user){
     	}
 }
 
-void acceptSocket(socketArgs_t *args, struct sockaddr_in *user){
-
+void acceptSocket(socketArgs_t *args, struct sockaddr_in *user)
+{
 	socklen_t len = sizeof(user);
 
 	args->sharedSocket_fd = accept(args->initSocket_fd, (struct sockaddr*)&user,&len);
@@ -65,7 +71,8 @@ void acceptSocket(socketArgs_t *args, struct sockaddr_in *user){
         }
 }
 
-int receiveSocket(int *fd, char *data, int length){
+int receiveSocket(int *fd, char *data, int length)
+{
 
 	int recieved = recv(*fd, data, length, 0);
         if (recieved == -1)
@@ -78,12 +85,11 @@ int receiveSocket(int *fd, char *data, int length){
 	return recieved;
 }
 
-int sendSocket(int *fd, char *data, int length){
-
+int sendSocket(int *fd, char *data, int length)
+{
 	int to_send = length;
 	int k = 0;
 	int sent =0;
-
 	while (to_send > 0)
         {
             k = send(*fd, data, length, 0);
