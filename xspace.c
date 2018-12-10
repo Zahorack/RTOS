@@ -10,7 +10,6 @@
 #include "xnavigation.h"
 
 static void nextMove(int x, int y, Point *, char);
-static void repaintMap();
 static void addBlock(Point);
 static void localLidarInitSpace(int, char**);
 static void print_menu(WINDOW *menu_win, int highlight, char **list, int list_size);
@@ -21,10 +20,12 @@ static void repaintMaze();
 static	WINDOW *menu_win = NULL;
 static WINDOW *scr = NULL;
 
-unsigned char Space[SPACE_SIZE][SPACE_SIZE*2];
+unsigned char Space[SPACE_SIZE][SPACE_SIZE];
 unsigned char Map[MAP_SIZE][MAP_SIZE];
 unsigned char LidarData[MAP_SIZE * MAP_SIZE];
-unsigned char Maze[SPACE_SIZE][SPACE_SIZE];
+unsigned char Visited[SPACE_SIZE][SPACE_SIZE];
+
+//unsigned char Maze[SPACE_SIZE][SPACE_SIZE];
 
 Point startPoint;
 Point goalPoint;
@@ -43,11 +44,13 @@ navigation_t navigation;
  *                                      --> MazeReaction
  */
 
+
 char *NavigationTypes[] = {
 	"Local naivgation (reactive)",
 	"Global navigation",
 	"Exit",
 };
+
 
 char *LocalNavigations[] = {
 	"Lidar reaction",
@@ -57,7 +60,7 @@ char *LocalNavigations[] = {
 };
 
 char *GlobalNavigations[] = {
-	"Mars",
+	"Default",
 	"Exit",
 };
 
@@ -115,9 +118,6 @@ void initSpace(int count, char *argv[]){
 	wrefresh(intro);
 
 
-	startPoint.x = LIDAR_RANGE+1;
-	startPoint.y = LIDAR_RANGE+1;
-
 	//::Navigation select
 
 	mvprintw(4,3,"Select type of navigation"); refresh();
@@ -127,21 +127,29 @@ void initSpace(int count, char *argv[]){
 
 	switch(navigation.type) {
 
-		case 1: mvprintw(4,3,"Select type of Local navigation"); refresh();
+		case LocalNavigation:
+			mvprintw(4,3,"Select type of Local navigation"); refresh();
 			navigation.local.type = selectMenu(LocalNavigations, n_LocalNavigations);
+
 			switch(navigation.local.type) {
-				case 1: mvprintw(4,3,"Select Lidar Algorithm to be used"); refresh();
+				case LidarReaction:
+					mvprintw(4,3,"Select Lidar Algorithm to be used"); refresh();
 					navigation.local.lidar.type = selectMenu(LidarReactions, n_LidarReactions);
+
 					switch(navigation.local.lidar.type) {
-						case 2: navigation.local.lidar.algorithm.bug.type = selectMenu(BugAlgorithms, n_BugAlgorithms); break;
+						case BugLidarAlgorithm:
+							navigation.local.lidar.algorithm.bug.type = selectMenu(BugAlgorithms, n_BugAlgorithms);
+							break;
 					}
 					break;
-				case 2: mvprintw(4,3,"Select Maze Algorithm to be used"); refresh();
-					navigation.local.maze.algorithm.type = selectMenu(MazeAlgorithms, n_MazeAlgorithms); break;
+				case MazeReaction:
+					mvprintw(4,3,"Select Maze Algorithm to be used"); refresh();
+					navigation.local.maze.algorithm.type = selectMenu(MazeAlgorithms, n_MazeAlgorithms);
+					break;
 			}
 			break;
 
-		case 2: mvprintw(4,3,"Select type of Local navigation"); refresh();
+		case GlobalNavigation: mvprintw(4,3,"Select type of Local navigation"); refresh();
 			navigation.global.type = selectMenu(GlobalNavigations, n_GlobalNavigations);
 			break;
 	}
@@ -166,13 +174,13 @@ void initSpace(int count, char *argv[]){
 
 static void localMazeInitSpace()
 {
+
 	initMaze();
 	printf("init maze\n");
 	initscr();
-	WINDOW *s = newwin(SPACE_SIZE*2, SPACE_SIZE*2, 2,2);
-	printMaze(s, SPACE_SIZE, SPACE_SIZE);
+	WINDOW *s = newwin(SPACE_SIZE, SPACE_SIZE*2, 2,2);
+	printSpace(s);
 
-	wgetch(s);
 	endwin();
 
 }
@@ -248,29 +256,31 @@ static void localLidarInitSpace(int count, char *argv[])
 	wrefresh(scr);
 	refresh();
 
+	startPoint.x = LIDAR_RANGE+1;
+	startPoint.y = LIDAR_RANGE+1;
 
 	if(count > 1) {
 		goalPoint.x = LIDAR_RANGE + atoi(argv[1]);
 		goalPoint.y = LIDAR_RANGE + atoi(argv[2]);
 	}
 	else {
-		goalPoint.x = 2*SPACE_SIZE - 2*LIDAR_RANGE;
+		goalPoint.x = SPACE_SIZE - 2*LIDAR_RANGE;
 		goalPoint.y = SPACE_SIZE - 2*LIDAR_RANGE;
 	}
 
 	//pripravi cisty priestor
-	for(int i=0; i < SPACE_SIZE; i++)
-		for(int j=0; j < SPACE_SIZE*2; j++)
+	for(int y=0; y < SPACE_SIZE; y++)
+		for(int x=0; x < SPACE_SIZE; x++)
 		{
-			if(i < LIDAR_RANGE || j < LIDAR_RANGE || i >= SPACE_SIZE - LIDAR_RANGE || j >= 2*SPACE_SIZE - LIDAR_RANGE)
-				Space[i][j] = 'X';
+			if(x < LIDAR_RANGE || y < LIDAR_RANGE || x >= SPACE_SIZE - LIDAR_RANGE || y >= SPACE_SIZE - LIDAR_RANGE)
+				Space[y][x] = 'X';
 			else
-				Space[i][j] = ' ';
+				Space[y][x] = ' ';
 
 		}
 
 	Space[startPoint.y][startPoint.x] = 'S';
-	Space[goalPoint.y][goalPoint.x] = 'O';
+	Space[goalPoint.y][goalPoint.x] = 'G';
 
 	//umiestni prekazky
 	for(int i = 3; i < count; i = i+2){
@@ -280,20 +290,11 @@ static void localLidarInitSpace(int count, char *argv[])
 	}
 
 
-	#ifdef SPACE_DEBUG
-	for(int i=0; i < SPACE_SIZE; i++){
-		for(int j=0; j < SPACE_SIZE*2; j++)
-		{
-			mvwaddch(scr, i+1, j+1,Space[i][j]);
-		}
-		waddch(scr, '\n');
-	}
-	#endif
-
+	printSpace(scr);
 
 	box(scr,0,0);
-	mvwaddch(scr,startPoint.x, startPoint.y,'S');
-	mvwaddch(scr,goalPoint.x, goalPoint.y,'O');
+	mvwaddch(scr,startPoint.y, startPoint.x,'S');
+	mvwaddch(scr,goalPoint.y, goalPoint.x,'O');
 
 	if(count <= 3) { //neboli zadane polohy prekazok z konzoli
 		char c;
@@ -312,10 +313,10 @@ static void localLidarInitSpace(int count, char *argv[])
 		while((c = getch()) != '\n') {
 			switch(c) {
 
-			case 'w' : nextMove(0, -1, &goalPoint, 'O'); break;
-	                case 's' : nextMove(0, 1, &goalPoint, 'O'); break;
-	                case 'd' : nextMove(1, 0, &goalPoint, 'O'); break;
-	                case 'a' : nextMove(-1, 0, &goalPoint, 'O'); break;
+			case 'w' : nextMove(0, -1, &goalPoint, 'G'); break;
+	                case 's' : nextMove(0, 1, &goalPoint, 'G'); break;
+	                case 'd' : nextMove(1, 0, &goalPoint, 'G'); break;
+	                case 'a' : nextMove(-1, 0, &goalPoint, 'G'); break;
 			}
 		}
 
@@ -355,8 +356,8 @@ static void nextMove(int x, int y, Point *point, char ch)
                 point->x += x;
                 point->y += y;
                 Space[point->y][point->x] = ch;
-		repaintMap();
-                wrefresh(scr);
+		wclear(scr);
+		printSpace(scr);
         }
 }
 
@@ -364,26 +365,52 @@ static void addBlock(Point block) {
 
 	Point erase;
 	if(isAvailable(block)) {
-		for(int x = block.x - BLOCK_RANGE; x < block.x + BLOCK_RANGE; x++){
-			for(int y = block.y - BLOCK_RANGE; y < block.y + BLOCK_RANGE; y++){
+		for(int y = block.y - BLOCK_RANGE; y < block.y + BLOCK_RANGE; y++){
+			for(int x = block.x - BLOCK_RANGE; x < block.x + BLOCK_RANGE; x++){
 				erase.x = x;
 				erase.y = y;
-				if(isAvailable(erase) && Space[erase.y][erase.x] != 'O')
+				if(isAvailable(erase) && Space[erase.y][erase.x] != 'G')
 					Space[y][x] = 'X';
 			}
 		}
 	}
 }
 
-static void repaintMap()
+void printSpace(WINDOW *scr)
 {
-        for(int y = 0; y < SPACE_SIZE; y++){
-                for(int x = 0; x < SPACE_SIZE*2; x++)
-                {
-                        mvwaddch(scr, y+1, x+1,Space[y][x]);
-                }
-                waddch(scr, '\n');
-        }
+
+	init_pair(1, COLOR_GREEN, COLOR_BLACK);
+	init_pair(2, COLOR_RED, COLOR_BLACK);
+
+	int ln = SPACE_SIZE;
+	if(!(ln %2)) {
+		ln = ln -1;
+	}
+	wmove(scr, 0,0);
+	for(int y=0; y < ln; y++){
+		for(int x=0; x < ln; x++) {
+			switch(Space[y][x]) {
+				case 'X': waddch(scr,' ' | A_REVERSE);
+					  waddch(scr,' ' | A_REVERSE);
+					  break;
+				case '*': wattron(scr, COLOR_PAIR(1));
+					  wprintw(scr," ");
+					  wprintw(scr, "%c",Space[y][x]);
+					  wattroff(scr,COLOR_PAIR(1));
+					  break;
+				case '#': wattron(scr, COLOR_PAIR(2));
+					  wprintw(scr," ");
+					  wprintw(scr, "%c",Space[y][x]);
+					  wattroff(scr, COLOR_PAIR(2));
+					  break;
+				default:  waddch(scr,' ');
+					  waddch(scr,Space[y][x]);
+					  break;
+			}
+		}
+		waddch(scr, '\n');
+	}
+	wrefresh(scr);
 }
 
 
@@ -420,11 +447,30 @@ void updateLidarData(Point actual)
 
 int isAvailable(Point point)
 {
-	return (point.y < SPACE_SIZE && point.x >= 0 && point.x < SPACE_SIZE*2 && point.y >= 0);
+	return (point.y < SPACE_SIZE && point.x >= 0 && point.x < SPACE_SIZE && point.y >= 0);
 }
 
 int isFree(Point point)
 {
-	return (Space[point.y][point.x] != 'X');
+	return (isAvailable(point) && Space[point.y][point.x] == ' ');
 }
 
+void setVisited(Point point)
+{
+	Visited[point.y][point.x] = 'v';
+}
+
+void setBlind(Point point)
+{
+	Visited[point.y][point.x] = 'b';
+}
+
+int isBlind(Point point)
+{
+	return (Visited[point.y][point.x] == 'b');
+}
+
+int wasVisited(Point point)
+{
+	return (Visited[point.y][point.x] == 'v');
+}

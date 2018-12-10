@@ -1,8 +1,3 @@
-/* Maze generator in C.
- * Joe Wingbermuehle
- * 19990805
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -12,7 +7,6 @@
 #include <ncurses.h>
 
 
-/* Display the maze. */
 static void ShowMaze(const char *maze, int width, int height) {
    int x, y;
 
@@ -30,7 +24,6 @@ static void ShowMaze(const char *maze, int width, int height) {
    }
 }
 
-/*  Carve the maze starting at x, y. */
 static void CarveMaze(char *maze, int width, int height, int x, int y) {
 
    int x1, y1;
@@ -87,63 +80,21 @@ static void GenerateMaze(char *maze, int width, int height)
    	}
 
    	/* Set up the entry and exit. */
-   	maze[0 * width + 1] = ' ';
-   	maze[(height - 1) * width + (width - 2)] = ' ';
+   	maze[0 * width + 1] = 'S';
+   	maze[(height - 1) * width + (width - 2)] = 'G';
+
+	startPoint.x = 1;
+	startPoint.y = 0;
+
+	goalPoint.x = (height - 1)*width;
+	goalPoint.y = width -2;
 
 	/* Fill global 2D array Maze */
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
-			Maze[x][y] = maze[y * width + x];
+			Space[y][x] = maze[y * width + x];
 		}
 	}
-}
-
-/* Solve the maze. */
-void SolveMaze(char *maze, int width, int height) {
-
-   int dir, count;
-   int x, y;
-   int dx, dy;
-   int forward;
-
-   /* Remove the entry and exit. */
-   maze[0 * width + 1] = 'X';
-   maze[(height - 1) * width + (width - 2)] = 'X';
-
-   forward = 1;
-   dir = 0;
-   count = 0;
-   x = 1;
-   y = 1;
-   while(x != width - 2 || y != height - 2) {
-      dx = 0; dy = 0;
-      switch(dir) {
-      case 0:  dx = 1;  break;
-      case 1:  dy = 1;  break;
-      case 2:  dx = -1; break;
-      default: dy = -1; break;
-      }
-      if((forward  && maze[(y + dy) * width + (x + dx)] == ' ') || (!forward && maze[(y + dy) * width + (x + dx)] == '*')) {
-         maze[y * width + x] = forward ? '*' : 'P';
-         x += dx;
-         y += dy;
-         forward = 1;
-         count = 0;
-         dir = 0;
-      } else {
-         dir = (dir + 1) % 4;
-         count += 1;
-         if(count > 3) {
-            forward = 0;
-            count = 0;
-         }
-      }
-   }
-
-   /* Replace the entry and exit. */
-   maze[(height - 2) * width + (width - 2)] = '*';
-   maze[(height - 1) * width + (width - 2)] = '*';
-
 }
 
 void initMaze() {
@@ -174,36 +125,10 @@ void initMaze() {
 
    /* Generate and display the maze. */
    GenerateMaze(maze, width, height);
-   //ShowMaze(maze, width, height);
-
-   /* Solve the maze if requested. */
-   //SolveMaze(maze, width, height);
-   //ShowMaze(maze, width, height);
+  // ShowMaze(maze, width, height);
 
 
    /* Clean up. */
    free(maze);
 
-}
-
-void printMaze(WINDOW *scr, int width, int height)
-{
-   	if(!(width %2)) {
-		width -=1;
-   	}
-   	if(!(height %2)) {
-		height -=1;
-   	}
-
-	for(int y = 0; y < height; y++) {
-      		for(int x = 0; x < width; x++) {
-         		switch(Maze[x][y]) {
-         			case 'X':  waddch(scr,' ' | A_REVERSE); waddch(scr,' ' | A_REVERSE); break;
-         			case '*':  wprintw(scr," *");  break;
-         			default: wprintw(scr,"  "); break;
-			}
-      		}
-      		waddch(scr,'\n');
-   	}
-	wrefresh(scr);
 }

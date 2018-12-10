@@ -9,6 +9,6 @@ server: xpacket.c xsemaphore.c xmaze.c xspace.c xspace.h xprocess.c xsocket.c xs
 clean:
 	rm -f client server
 run:
-	./client 68 25 15 9 6 7 16 20 20 15 18 3 6 24 60 25 55 9 48 16 40 25 35 8 30 14
+	./client 25 25 15 9 6 7 16 20 20 15 18 3 6 24 60 25 55 9 48 16 40 25 35 8 30 14
 
 .DEFAULT_GOAL := all

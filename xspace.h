@@ -1,7 +1,7 @@
 #ifndef XSPACE_H_
 #define XSPACE_H_
 #include <stdint.h>
-
+#include <ncurses.h>
 
 #define BLOCK_RANGE	2
 #define SPACE_SIZE      50
@@ -11,10 +11,12 @@
 #define SPACE_DEBUG
 #define LIDAR_MID	(MAP_SIZE/2)
 
-extern unsigned char Space[SPACE_SIZE][2*SPACE_SIZE];
+extern unsigned char Space[SPACE_SIZE][SPACE_SIZE];
 extern unsigned char Map[MAP_SIZE][MAP_SIZE];
 extern unsigned char LidarData[MAP_SIZE * MAP_SIZE];
-extern unsigned char Maze[SPACE_SIZE][SPACE_SIZE];
+extern unsigned char Visited[SPACE_SIZE][SPACE_SIZE];
+
+//extern unsigned char Maze[SPACE_SIZE][SPACE_SIZE];
 
 typedef struct {
 
@@ -25,6 +27,34 @@ typedef struct {
 extern Point startPoint;
 extern Point goalPoint;
 
+enum NavigationTypesEnum {
+        LocalNavigation =1,
+        GlobalNavigation,
+};
+
+enum LocalNavigationsEnum {
+        LidarReaction =1,
+        MazeReaction,
+};
+
+enum GlobalNavigationsEnum {
+        DefaultGlobal = 1,
+};
+
+enum LidarReactionsEnum {
+        DefaultLidarAlgorthm =1,
+        BugLidarAlgorithm,
+        WanderingLidarAlgorithm,
+};
+
+enum MazeAlgorithmsEnum {
+        DefaultMazeAlgorithm =1,
+        LeftHandAlgorithm,
+        RightHandAlgorithm,
+        FloodFillAlgorithm,
+};
+
+
 enum move{
         up = 0,
         down,
@@ -34,11 +64,17 @@ enum move{
         moveSize
 };
 
+
+void printSpace(WINDOW *);
 void initSpace(int count, char **argv);
 void updateMap(Point);
 void printMap();
 void printLidarData();
 void updateLidarData(Point);
+void setVisited(Point point);
+int  wasVisited(Point point);
+void setBlind(Point);
+int  isBlind(Point);
 
 int  isAvailable(Point);
 int  isFree(Point);

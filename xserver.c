@@ -81,7 +81,7 @@ int main(int argc, char *argv[]){
 	printf("nav.bug type : %d\n", navigation.local.lidar.algorithm.bug.type);
 
 	initScreen();
-        initTimer(getNavigationDataPeriodicaly, SIGUSR1, 0, 50000000);
+        initTimer(getNavigationDataPeriodicaly, SIGUSR1, 0,50000000);
 
 	//cycling...
 	getMoveCommand();
@@ -174,7 +174,7 @@ static void clientReady()
 static void initScreen()
 {
 	initscr();
-	lidar = newwin(MAP_SIZE+2, MAP_SIZE+2, 2,2);
+	lidar = newwin(MAP_SIZE+2, 2*MAP_SIZE+2, 2,2);
 
 	printw("Lidar view");
 
@@ -187,15 +187,22 @@ static void initScreen()
 
 static void updateLidarScreen()
 {
-        int iterator = 0;
         int ln = MAP_SIZE;
+	wclear(lidar);
         for(int y =0; y < ln; y++){
                 for(int x = 0; x < ln; x++){
-                        mvwaddch(lidar, y+1,x+1,Lidar[y][x]);
-                        iterator++;
+                        switch(Lidar[y][x]) {
+				case 'X':waddch(lidar,' ' | A_REVERSE);
+                                         waddch(lidar,' ' | A_REVERSE);
+                                         break;
+				default: waddch(lidar,' ');
+					 waddch(lidar, Lidar[y][x]);
+					 break;
+			}
                 }
                 waddch(lidar,'\n');
         }
+
 	box(lidar,0,0);
 	wrefresh(lidar);
 }

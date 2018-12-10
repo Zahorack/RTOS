@@ -1,4 +1,6 @@
 #include "xnavigation.h"
+#include "xspace.h"
+
 
 /*                               ____________
  *                              |            |
@@ -20,8 +22,7 @@
  */
 
 
-void mazeRightHand(char **maze, int rows, int cols, Point start, Point goal)
+void mazeRightHand()
 {
-
 
 }
