@@ -11,8 +11,9 @@
 #include "xtimer.h"
 #include <ncurses.h>
 
+
 /* Display the maze. */
-void ShowMaze(const char *maze, int width, int height) {
+static void ShowMaze(const char *maze, int width, int height) {
    int x, y;
 
    for(y = 0; y < height; y++) {
@@ -30,7 +31,7 @@ void ShowMaze(const char *maze, int width, int height) {
 }
 
 /*  Carve the maze starting at x, y. */
-void CarveMaze(char *maze, int width, int height, int x, int y) {
+static void CarveMaze(char *maze, int width, int height, int x, int y) {
 
    int x1, y1;
    int x2, y2;
@@ -66,30 +67,35 @@ void CarveMaze(char *maze, int width, int height, int x, int y) {
 
 }
 
-void GenerateMaze(char *maze, int width, int height) {
+static void GenerateMaze(char *maze, int width, int height)
+{
+   	int x, y;
+   	/* Initialize the maze. */
+   	for(x = 0; x < width * height; x++) {
+      		maze[x] = 'X';
+   	}
+   	maze[1 * width + 1] = ' ';
 
-   int x, y;
+   	/* Seed the random number generator. */
+   	srand(time(0));
 
-   /* Initialize the maze. */
-   for(x = 0; x < width * height; x++) {
-      maze[x] = 'X';
-   }
-   maze[1 * width + 1] = ' ';
+   	/* Carve the maze. */
+   	for(y = 1; y < height; y += 2) {
+      		for(x = 1; x < width; x += 2) {
+         		CarveMaze(maze, width, height, x, y);
+      		}
+   	}
 
-   /* Seed the random number generator. */
-   srand(time(0));
+   	/* Set up the entry and exit. */
+   	maze[0 * width + 1] = ' ';
+   	maze[(height - 1) * width + (width - 2)] = ' ';
 
-   /* Carve the maze. */
-   for(y = 1; y < height; y += 2) {
-      for(x = 1; x < width; x += 2) {
-         CarveMaze(maze, width, height, x, y);
-      }
-   }
-
-   /* Set up the entry and exit. */
-   maze[0 * width + 1] = ' ';
-   maze[(height - 1) * width + (width - 2)] = ' ';
-
+	/* Fill global 2D array Maze */
+	for(int y = 0; y < height; y++) {
+		for(int x = 0; x < width; x++) {
+			Maze[x][y] = maze[y * width + x];
+		}
+	}
 }
 
 /* Solve the maze. */
@@ -171,35 +177,33 @@ void initMaze() {
    //ShowMaze(maze, width, height);
 
    /* Solve the maze if requested. */
-   SolveMaze(maze, width, height);
-   ShowMaze(maze, width, height);
+   //SolveMaze(maze, width, height);
+   //ShowMaze(maze, width, height);
 
-
-	/* Init global Maze */
-	for(int y = 0; y < height; y++) {
-		for(int x = 0; x < width; x++) {
-			Maze[x][y] = maze[y * width + x];
-		}
-	}
-/*
-initscr();
-for(int y = 0; y < height; y++) {
-      for(int x = 0; x < width; x++) {
-         switch(Maze[x][y]) {
-         case 'X':  mvprintw(y,x,"XX");  break;
-         case '*':  mvprintw(y,x," *");  break;
-         default: mvprintw(y,x,"  "); break;
-	}
-      }
-      printw("\n");
-   }
-getch();
-endwin();
-*/
 
    /* Clean up. */
    free(maze);
-   exit(EXIT_SUCCESS);
 
 }
 
+void printMaze(WINDOW *scr, int width, int height)
+{
+   	if(!(width %2)) {
+		width -=1;
+   	}
+   	if(!(height %2)) {
+		height -=1;
+   	}
+
+	for(int y = 0; y < height; y++) {
+      		for(int x = 0; x < width; x++) {
+         		switch(Maze[x][y]) {
+         			case 'X':  waddch(scr,' ' | A_REVERSE); waddch(scr,' ' | A_REVERSE); break;
+         			case '*':  wprintw(scr," *");  break;
+         			default: wprintw(scr,"  "); break;
+			}
+      		}
+      		waddch(scr,'\n');
+   	}
+	wrefresh(scr);
+}

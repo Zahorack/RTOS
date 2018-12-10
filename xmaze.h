@@ -1,7 +1,9 @@
 #ifndef XMAZE_H_
 #define XMAZE_H_
 
+#include <ncurses.h>
+
 void initMaze();
-//extern uint8_t **maze;
+void printMaze(WINDOW *scr, int, int);
 
 #endif

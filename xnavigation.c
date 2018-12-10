@@ -19,3 +19,9 @@
  *
  */
 
+
+void mazeRightHand(char **maze, int rows, int cols, Point start, Point goal)
+{
+
+
+}

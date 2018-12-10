@@ -153,14 +153,6 @@ void initSpace(int count, char *argv[]){
 	//-------------------------------------------------------
 
 
-	initscr();
-	scr = newwin(SPACE_SIZE+2,2*SPACE_SIZE+2, 2,2);
-	cbreak();
-	noecho();
-
-	printw("Initialization of space");
-	wrefresh(scr);
-	refresh();
 
 	switch(navigation.local.type) {
 		case 1: localLidarInitSpace(count, argv); break;
@@ -169,39 +161,21 @@ void initSpace(int count, char *argv[]){
 
 
 
-	wclear(scr);
-	wrefresh(scr);
-	refresh();
-	endwin();
 
 }
 
 static void localMazeInitSpace()
 {
 	initMaze();
+	printf("init maze\n");
+	initscr();
+	WINDOW *s = newwin(SPACE_SIZE*2, SPACE_SIZE*2, 2,2);
+	printMaze(s, SPACE_SIZE, SPACE_SIZE);
 
-	//repaintMaze();
+	wgetch(s);
+	endwin();
 
 }
-
-/*
-static void repaintMaze()
-{
-        for(int y = 0; y < SPACE_SIZE; y++){
-                for(int x = 0; x < SPACE_SIZE; x++)
-                {
-//                        printf("%c", maze[y][x]);
-			if(maze[y][x] != ' ')
-			mvwprintw(scr, y+1, x+1,"X");
-			else
-				mvwprintw(scr, y+1, x+1, " ");
-                }
-//                printf("\n");
-		wprintw(scr, "\n");
-        }
-	wrefresh(scr);
-}
-*/
 
 static uint8_t selectMenu(char **list, int size)
 {
@@ -264,6 +238,16 @@ static void print_menu(WINDOW *menu_win, int highlight, char **list, int size)
 
 static void localLidarInitSpace(int count, char *argv[])
 {
+
+	initscr();
+	scr = newwin(SPACE_SIZE+2,2*SPACE_SIZE+2, 2,2);
+	cbreak();
+	noecho();
+
+	printw("Initialization of space");
+	wrefresh(scr);
+	refresh();
+
 
 	if(count > 1) {
 		goalPoint.x = LIDAR_RANGE + atoi(argv[1]);
@@ -351,6 +335,13 @@ static void localLidarInitSpace(int count, char *argv[])
 			addBlock(block);
 		}
 	}
+
+	wclear(scr);
+	wrefresh(scr);
+	refresh();
+	endwin();
+
+
 }
 
 static void nextMove(int x, int y, Point *point, char ch)
