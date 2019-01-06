@@ -86,8 +86,8 @@ static void GenerateMaze(char *maze, int width, int height)
 	startPoint.x = 1;
 	startPoint.y = 0;
 
-	goalPoint.x = (height - 1)*width;
-	goalPoint.y = width -2;
+	goalPoint.x = width -2;
+	goalPoint.y = height -1;
 
 	/* Fill global 2D array Maze */
 	for(int y = 0; y < height; y++) {

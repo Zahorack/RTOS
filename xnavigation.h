@@ -1,9 +1,10 @@
 #ifndef XNAVIGATION_H_
-#define NAVIGATION_H_
+#define XNAVIGATION_H_
 
+//#include "xspace.h"
+#include <ncurses.h>
+#include <stdint.h>
 #include "xspace.h"
-
-
 
 typedef struct {
 	Point start;
@@ -11,6 +12,12 @@ typedef struct {
 	Point goal;
 
 } coordinates_t;
+
+
+void mazeDefaultAlgorithm(WINDOW *);
+void mazeHandPrincipleAlgorithm(WINDOW *, uint8_t);
+void mazeRightHandPrincipleAlgorithmStatictic();
+void mazeLeftHandPrincipleAlgorithmStatictic();
 
 
 //::ALgorithm specification

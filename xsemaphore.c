@@ -16,7 +16,7 @@ threadArgs_t args;
 void createThread(pthread_t *thread, void *(*threadFunction)(threadArgs_t *), void *args)
 {
 	// A posleme argumenty!
-	if(pthread_create(thread, NULL, (void *)threadFunction, (void *)args)) { 
+	if(pthread_create(thread, NULL, (void *)threadFunction, (void *)args)) {
 		perror("Thread creation failed\n");
 		exit(EXIT_FAILURE);
 	}

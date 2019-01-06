@@ -8,6 +8,7 @@
 #include <ncurses.h>
 #include "xmaze.h"
 #include "xnavigation.h"
+#include <signal.h>
 
 static void nextMove(int x, int y, Point *, char);
 static void addBlock(Point);
@@ -16,6 +17,7 @@ static void print_menu(WINDOW *menu_win, int highlight, char **list, int list_si
 static uint8_t selectMenu(char **list, int size);
 static void localMazeInitSpace();
 static void repaintMaze();
+static void Exit();
 
 static	WINDOW *menu_win = NULL;
 static WINDOW *scr = NULL;
@@ -85,6 +87,7 @@ char *MazeAlgorithms[] = {
 	"LeftHand",
 	"RightHand",
 	"Flood fill",
+	"Compare",
 	"Exit",
 };
 
@@ -96,7 +99,6 @@ void initSpace(int count, char *argv[]){
 	int n_LidarReactions = sizeof(LidarReactions) / sizeof(char *);
 	int n_BugAlgorithms = sizeof(BugAlgorithms) / sizeof(char *);
 	int n_MazeAlgorithms = sizeof(MazeAlgorithms) / sizeof(char *);
-	printf("size :%d ", n_BugAlgorithms);
 
 	initscr();
 	clear();
@@ -140,18 +142,22 @@ void initSpace(int count, char *argv[]){
 						case BugLidarAlgorithm:
 							navigation.local.lidar.algorithm.bug.type = selectMenu(BugAlgorithms, n_BugAlgorithms);
 							break;
+						case sizeof(BugAlgorithms) / sizeof(char *): Exit(); break;
 					}
 					break;
 				case MazeReaction:
 					mvprintw(4,3,"Select Maze Algorithm to be used"); refresh();
 					navigation.local.maze.algorithm.type = selectMenu(MazeAlgorithms, n_MazeAlgorithms);
 					break;
+				case sizeof(LocalNavigations) / sizeof(char *): Exit(); break;
 			}
 			break;
 
 		case GlobalNavigation: mvprintw(4,3,"Select type of Local navigation"); refresh();
 			navigation.global.type = selectMenu(GlobalNavigations, n_GlobalNavigations);
 			break;
+
+		case sizeof(NavigationTypes) / sizeof(char *): Exit(); break;
 	}
 
 	clear();
@@ -170,6 +176,12 @@ void initSpace(int count, char *argv[]){
 
 
 
+}
+
+static void Exit()
+{
+	endwin();
+	exit(EXIT_SUCCESS);
 }
 
 static void localMazeInitSpace()

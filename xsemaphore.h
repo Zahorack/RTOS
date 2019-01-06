@@ -5,6 +5,7 @@
 typedef struct {
         sem_t sem;
         int number;
+	char znak;
 } threadArgs_t;
 
 // Kedze sme v C mozeme dat pointer na strukturu rovno do argumentu

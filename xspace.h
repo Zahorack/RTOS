@@ -4,7 +4,7 @@
 #include <ncurses.h>
 
 #define BLOCK_RANGE	2
-#define SPACE_SIZE      50
+#define SPACE_SIZE      60
 #define LIDAR_RANGE	9
 #define MAP_SIZE	(LIDAR_RANGE*2 +1)
 #define ROOM_SIZE	SPACE_SIZE - LIDAR_RANGE
@@ -52,6 +52,7 @@ enum MazeAlgorithmsEnum {
         LeftHandAlgorithm,
         RightHandAlgorithm,
         FloodFillAlgorithm,
+	Compare,
 };
 
 

@@ -42,11 +42,7 @@ static void sendProcessID();
 static void sendCoordinates();
 static void sendSimplePacket(uint8_t );
 static void runServer();
-static void solveMaze();
-static uint8_t nextCell(uint8_t);
-static uint8_t moveFromOrientation(uint8_t, uint8_t);
-static void solve();
-static void printColorSpace();
+static void mazeNavigation();
 
 //::Global variables
 socketArgs_t client;
@@ -92,10 +88,15 @@ int main(int argc, char *argv[]) {
 	initRover();
 
 	if(navigation.local.type == MazeReaction) {
-
-		initTimer(solve, SIGUSR1,0, 10000000);
+		Space[goalPoint.y][goalPoint.x] = ' ';
+		initTimer(mazeNavigation, SIGUSR1,0, 10000000);
 	}
 
+	if(navigation.local.maze.algorithm.type == Compare) {
+		endwin();
+		createProcess(mazeRightHandPrincipleAlgorithmStatictic, emptyFcn, NULL, NULL);
+		createProcess(mazeLeftHandPrincipleAlgorithmStatictic, emptyFcn, NULL, NULL);
+	}
 
 	//CYCLING...
 	while(1) sleep(1);
@@ -106,171 +107,18 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-static void solveMaze()
+static void mazeNavigation()
 {
-	Point next;
-	static int lastDx =0, lasdDy =0;
-	static uint8_t invalid = moveSize;
-	static uint8_t last = 0;
-	static uint8_t newOrientationAlarm =0;
 
-	int recomendedX =0, recomendedY =0;
-
-	if(goalPoint.x > rover.x) recomendedX =1;
-	if(goalPoint.y > rover.y) recomendedY =1;
-
-	static uint8_t orientation = 0;
-
-	if(newOrientationAlarm){
-		orientation = moveFromOrientation(orientation, last);
-		mvprintw(1,1, "new orientation");
+	switch(navigation.local.maze.algorithm.type) {
+		case DefaultMazeAlgorithm: mazeDefaultAlgorithm(space); break;
+		case RightHandAlgorithm:   mazeHandPrincipleAlgorithm(space, right); break;
+		case LeftHandAlgorithm:	   mazeHandPrincipleAlgorithm(space, left); break;
+		default : break;
 
 	}
-
-	newOrientationAlarm =1;
-
-	if(!nextCell(moveFromOrientation(orientation,right))) {
-		if(!nextCell(moveFromOrientation(orientation, up))){
-			if(!nextCell(moveFromOrientation(orientation, down))) {
-				if(!nextCell(moveFromOrientation(orientation, left))) {
-					mvprintw(1, 15,"noway");
-				}
-				else last = left;
-			}
-			else last = down;
-		}
-		else newOrientationAlarm = 0;
-
-	}
-	else {
-		 last = right;
-	}
-
-	mvprintw(0,0,"orientation: %d last move: %d", orientation, last);
-	refresh();
-
 }
 
-
-static void solve()
-{
-	static int dir =0, count =0;
-     	static int dx, dy;
-   	static int forward = 1;
-
-	if(rover.x != SPACE_SIZE-3 || rover.y != SPACE_SIZE-3) {
-      		dx = 0; dy = 0;
-      		switch(dir) {
-      		case 0:  dx = 1;  break;
-      		case 1:  dy = 1;  break;
-      		case 2:  dx = -1; break;
-      		default: dy = -1; break;
-      		}
-
-		Point next;
-		next.x = rover.x +dx;
-		next.y = rover.y +dy;
-
-      		if((forward && isFree(next)) || (!forward && wasVisited(next))) {
-         		Space[rover.y][rover.x] = forward ? '*' : '#';
-
-			forward ? setVisited(rover) : setBlind(rover);
-			rover.x += dx;
-         		rover.y += dy;
-         		forward = 1;
-         		count = 0;
-         		dir = 0;
-
-
-			printSpace(space);
-      		}
-		else {
-         		dir = (dir + 1) % 4;
-         		count += 1;
-         		if(count > 3) {
-            			forward = 0;
-            			count = 0;
-         		}
-      		}
-   	}
-}
-
-static uint8_t moveFromOrientation(uint8_t orientation, uint8_t move)
-{
-	uint8_t movement;
-	int dx =0, dy=0;
-	switch(move) {
-		case up: dy = -1; break;
-		case down:dy = 1; break;
-		case right: dx = 1; break;
-		case left: dx = -1; break;
-	}
-
-	switch(orientation) {
-		case up: movement = move; break;
-		case down: movement = move -dy + dx; break;
-		case right: movement = left - move + dy; break;
-		case left: movement = left  - move - dx; break;
-	}
-
-		return movement;
-}
-
-static uint8_t nextCell(uint8_t move)
-{
-	mvprintw(1,6, "command: %d", move);
-	Point next;
-	int dx=0, dy=0;
-	static int escape = 0;
-	static uint8_t lastValid =0;
-	static Point escapeVector;
-
-	switch(move) {
-		case up:   dy = -1; break;
-		case down: dy = 1;  break;
-		case right:dx = 1;  break;
-		case left: dx = -1; break;
-	}
-
-	next.x = rover.x +dx;
-	next.y = rover.y +dy;
-
-	if(escape == 1 && isFree(next) && move != lastValid) {
-		escape =0;
-	}
-
-	if(escape == 1) {
-		//need to move back
-		dy = 0;
-		dx = 0;
-		switch(lastValid) {
-			case up:   dy = 1; break;
-			case down: dy = -1;  break;
-			case right:dx = -1;  break;
-			case left: dx = 1; break;
-		}
-		escapeVector.x = dx;
-		escapeVector.y = dy;
-	}
-
-	next.x = rover.x +dx;
-	next.y = rover.y +dy;
-
-	if(isFree(next) && (!wasVisited(next) || escape == 1)) {
-		rover.x += dx;
-		rover.y += dy;
-		setVisited(rover);
-		wclear(space);
-		printSpace(space);
-		mvwprintw(space, rover.y, rover.x*2, " A");
-		wrefresh(space);
-		lastValid = move;
-		return 1;
-	}
-	if(move == left) escape = 1;
-
-	return 0;
-}
 
 static void runServer()
 {
@@ -419,7 +267,7 @@ static void nextMove(int x, int y)
 }
 
 
-static void emptyFcn(){};
+static void emptyFcn(){}
 
 static void sendCoordinates()
 {
@@ -441,6 +289,7 @@ static void sendCoordinates()
         sendSocket(&client.initSocket_fd, (char *)&coords, p.header.data_len);
 
 	//GET NAVIGATION
+	//NAVIGUJ MA......!!!
 	sendSimplePacket(packet_type_navigation);
 }
 

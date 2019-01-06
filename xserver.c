@@ -47,25 +47,35 @@ static void setCoordinates();
 static void getCoordinates();
 static void getNavigationDataPeriodicaly();
 static void sendDeltaMove(Point);
-
+static void SemaphoreStart();
+static void SemaphoreStop();
+void *humanThreadFunction(threadArgs_t *args);
+void *machineThreadFunction(threadArgs_t *args);
 static uint8_t dumb();
 
-
+enum Operators {
+	Human = 0,
+	Machine,
+};
+uint8_t Operator = Human;
 
 //::Blobal variables
-static socketArgs_t server;
-static coordinates_t coords;
-static uint8_t clientFlag = 0;
-static uint8_t exitFlag = 0;
 static pid_t clientPID;
 static processArgs_t gui_t;
+static socketArgs_t server;
+static coordinates_t coords;
+static pthread_t machine_thread, human_thread;
+static uint8_t clientFlag = 0;
+static uint8_t exitFlag = 0;
 static WINDOW *lidar =NULL;
 static char Lidar[MAP_SIZE][MAP_SIZE];
 static uint8_t *sharedTask;
 
+
 //::Main
 int main(int argc, char *argv[]){
-	pthread_t threadReceive, threadGUI;
+	pthread_t threadReceive;
+	threadArgs_t semArgs;
 
 	//initialization...
 	signal(SIGINT, stopHandler);
@@ -81,11 +91,13 @@ int main(int argc, char *argv[]){
 	printf("nav.bug type : %d\n", navigation.local.lidar.algorithm.bug.type);
 
 	initScreen();
+	SemaphoreStart(&semArgs);
         initTimer(getNavigationDataPeriodicaly, SIGUSR1, 0,50000000);
 
 	//cycling...
 	getMoveCommand();
 
+	SemaphoreStop(&semArgs);
 	joinThread(&threadReceive);
 	endwin();
 
@@ -93,6 +105,75 @@ int main(int argc, char *argv[]){
 }
 
 //::Function definitions
+
+static void SemaphoreStart(threadArgs_t *args)
+{
+        if(sem_init(&args->sem, 0, 0)) {
+                perror("Semaphore initialization failed");
+                exit(EXIT_FAILURE);
+        }
+ 	createThread(&human_thread, humanThreadFunction, &args);
+        createThread(&machine_thread, machineThreadFunction, &args);
+}
+
+static void SemaphoreStop(threadArgs_t *args)
+{
+        printf("Waiting for thread Human to finish\n");
+        joinThread(&human_thread);
+
+        printf("Waiting for thread Machine to finish\n");
+        joinThread(&machine_thread);
+
+        printf("Threads joined\n");
+
+        sem_destroy(&args->sem);
+}
+
+void *humanThreadFunction(threadArgs_t *args)
+{
+	//ak si tu tak ma povolene ziadat prikaz z kalvesnice
+	sem_wait(&args->sem);
+	while(args->znak != 'q') {
+
+		Operator = Human;
+		mvprintw(0,0, "Human control");
+
+		args->znak = getch();	//waiting function
+
+		switch(args->znak) {
+			case 'w': sendMoveCommand(up); break;
+			case 's': sendMoveCommand(down); break;
+			case 'd': sendMoveCommand(right); break;
+			case 'a': sendMoveCommand(left); break;
+
+			case '\n': sem_post(&args->sem);sleep(1); sem_wait(&args->sem);break;
+			default : break;
+		}
+	getLidarData();
+	}
+
+	pthread_exit(NULL);
+}
+
+void *machineThreadFunction(threadArgs_t *args)
+{
+	char c;
+	//tu bude cakat na scanf a potom uvolni semafor pre vlakno v ktorom sa budu posielat prikazy z klavesnice
+	while(args->znak != 'q') {
+		sem_wait(&args->sem);
+		Operator = Machine;
+		mvprintw(0,0, "Machine control");
+
+		while(c != '\n') {
+			c = getch();
+		}
+
+		sem_post(&args->sem);
+		sleep(1);
+	}
+	pthread_exit(NULL);
+}
+
 static void emptyFcn()
 {}
 
@@ -128,14 +209,17 @@ static uint8_t dumb()
 
 static void generateNavigation(uint8_t (*algorithm)())
 {
-	uint8_t move = algorithm();
-//	sendMoveCommand(move);
+	if(Operator == Machine) {
+		algorithm();
+	}
 }
 
 static void getNavigationDataPeriodicaly()
 {
-	getLidarData();
-	getCoordinates();
+	if(Operator == Machine) {
+		getLidarData();
+		getCoordinates();
+	}
 }
 
 static void stopHandler()
@@ -362,7 +446,6 @@ static void getMoveCommand()
 {
 	char c;
 	while(1) {
-//		printf("%s", c);
 		switch(getch()) {
 			case 'w': sendMoveCommand(up); break;
 			case 's': sendMoveCommand(down); break;
